@@ -1,0 +1,11 @@
+[
+  { "name": "Millets", "color": "#EDA100", "icon": "Wheat" },
+  { "name": "Paddy", "color": "#008300", "icon": "Sprout" },
+  { "name": "Oilseeds", "color": "#EB6834", "icon": "Droplet" },
+  { "name": "Farm Mechanization", "color": "#2A78D6", "icon": "Tractor" },
+  { "name": "Arecanut & Mushroom", "color": "#6250D6", "icon": "Recycle" },
+  { "name": "Integrated Farming", "color": "#1BAF7A", "icon": "Fish" },
+  { "name": "Dairy & Livestock", "color": "#E87BA4", "icon": "Milk" },
+  { "name": "Horticulture", "color": "#B8432F", "icon": "Apple" },
+  { "name": "Other", "color": "#6B7280", "icon": "Leaf" }
+]
