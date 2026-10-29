@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Eye, EyeOff, Lock, UserRound, ArrowLeft, ShieldCheck } from 'lucide-react';
@@ -13,6 +13,10 @@ export default function Login({ onDone }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const { champions } = useChampions();
+  const [noServer, setNoServer] = useState(false);
+  useEffect(() => {
+    api.serverAvailable().then((ok) => setNoServer(!ok));
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -63,6 +67,16 @@ export default function Login({ onDone }) {
           <h1 className="mt-5 font-display text-3xl font-bold tracking-tight">Admin login</h1>
           <p className="mt-1.5 text-sm text-ink-mute">Sign in with the admin ID and password.</p>
 
+          {noServer && (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-semibold">Admin is not available on this link</p>
+              <p className="mt-1 text-[13px] leading-relaxed">
+                This copy of the website is hosted without the Node server, so login, editing, photo upload and analytics are switched off. Open the admin on the server version
+                (<code className="rounded bg-white/70 px-1">npm start</code> / <code className="rounded bg-white/70 px-1">npm run share</code>, or the AWS deployment).
+              </p>
+            </div>
+          )}
+
           <label className="label mt-8" htmlFor="aid">Admin ID</label>
           <div className="relative">
             <UserRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" />
@@ -84,7 +98,7 @@ export default function Login({ onDone }) {
             </motion.p>
           )}
 
-          <button className="btn-dark mt-6 w-full !py-3" disabled={busy}>
+          <button className="btn-dark mt-6 w-full !py-3" disabled={busy || noServer}>
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
           {DEMO && (

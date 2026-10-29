@@ -11,7 +11,9 @@
     "prod": "npm run build && node server/index.js",
     "build:demo": "vite build --config client/vite.config.js --mode demo",
     "images:compress": "node server/scripts/compress-existing.js",
-    "share": "node server/scripts/share.js"
+    "share": "node server/scripts/share.js",
+    "db:migrate": "node server/scripts/migrate-to-mongo.js",
+    "admin:reset-password": "node server/scripts/reset-password.js"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -21,6 +23,7 @@
     "express": "^4.21.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.61.0",
+    "mongodb": "^6.21.0",
     "motion": "^11.18.2",
     "multer": "^2.0.2",
     "qrcode": "1.5",

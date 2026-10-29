@@ -27,7 +27,9 @@ function refHost(ref) {
   }
 }
 
-export function aggregate(events, champions = [], days = 30, now = Date.now()) {
+// `extra` (optional, used by the MongoDB store, which only loads the selected period):
+//   { allTime: { visits, visitors }, recent: [latest events, newest first] }
+export function aggregate(events, champions = [], days = 30, now = Date.now(), extra = {}) {
   const nameOf = Object.fromEntries(champions.map((c) => [c.id, c.name]));
   const since = now - days * DAY;
   const todayKey = dayKey(now);
@@ -78,8 +80,8 @@ export function aggregate(events, champions = [], days = 30, now = Date.now()) {
   return {
     days,
     totals: {
-      allTimeVisits: views(all).length,
-      allTimeVisitors: uniq(views(all)),
+      allTimeVisits: extra.allTime ? extra.allTime.visits : views(all).length,
+      allTimeVisitors: extra.allTime ? extra.allTime.visitors : uniq(views(all)),
       visits: views(windowed).length,
       visitors: uniq(views(windowed)),
       sessions: sessions(windowed),
@@ -95,9 +97,7 @@ export function aggregate(events, champions = [], days = 30, now = Date.now()) {
     devices: countBy(views(windowed), (e) => e.device || 'Unknown'),
     referrers: countBy(views(windowed), (e) => refHost(e.referrer)).slice(0, 6),
     shareChannels: countBy(shares, (e) => e.channel || 'link'),
-    recent: all
-      .slice(-12)
-      .reverse()
+    recent: (extra.recent || all.slice(-12).reverse())
       .map((e) => ({ ...e, championName: e.championId ? nameOf[e.championId] : undefined })),
   };
 }

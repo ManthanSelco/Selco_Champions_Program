@@ -4,3 +4,4 @@ client/dist-demo
 server/data
 server/uploads
 .env
+*.timestamp-*.mjs

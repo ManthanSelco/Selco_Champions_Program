@@ -49,12 +49,29 @@ class ApiError extends Error {
   }
 }
 
+// Set when the page is hosted WITHOUT the Node server (e.g. static hosting on Vercel/Netlify):
+// the public site then shows the built-in champions data, and the admin explains why it is off.
+export let STATIC_HOSTING = false;
+const NO_SERVER_MSG =
+  'The admin panel needs the Node server, which is not running on this hosting. Use the server version (npm start / npm run share, or the AWS deployment) to log in and edit champions.';
+
 async function http(path, { method = 'GET', body, auth = false, form } = {}) {
   const headers = {};
   if (body) headers['content-type'] = 'application/json';
   if (auth && token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(API + path, { method, headers, body: form || (body ? JSON.stringify(body) : undefined) });
+  let res;
+  try {
+    res = await fetch(API + path, { method, headers, body: form || (body ? JSON.stringify(body) : undefined) });
+  } catch {
+    throw new ApiError('Cannot reach the server. Check your internet connection and try again.', 0);
+  }
   if (res.status === 204) return null;
+  const isJson = (res.headers.get('content-type') || '').includes('application/json');
+  // No API here at all (static host returns its 404/405 page or index.html instead of JSON)
+  if (!isJson && (res.status === 404 || res.status === 405 || res.ok)) {
+    STATIC_HOSTING = true;
+    throw new ApiError(NO_SERVER_MSG, 501);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && auth) setToken(null);
@@ -131,6 +148,17 @@ function resizeToDataUrl(file, max = 1280, quality = 0.78) {
   });
 }
 
+async function shrinkForUpload(file, limit = 3.5 * 1024 * 1024) {
+  if (file.size <= limit || !/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const dataUrl = await resizeToDataUrl(file, 2400, 0.86);
+    const blob = await (await fetch(dataUrl)).blob();
+    return new File([blob], (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 /* --------------------------------- API ---------------------------------- */
 export const api = {
   async listChampions({ admin = false } = {}) {
@@ -138,7 +166,27 @@ export const api = {
       await wait(150);
       return demoList().filter((c) => admin || c.published !== false);
     }
-    return http('/champions', { auth: admin });
+    try {
+      return await http('/champions', { auth: admin });
+    } catch (e) {
+      // Static hosting (no Node server): show the champions bundled with the website.
+      if (e.status === 501 && !admin) {
+        const now = new Date().toISOString();
+        return seed.filter((c) => c.published !== false).map((c) => ({ ...c, createdAt: now, updatedAt: now }));
+      }
+      throw e;
+    }
+  },
+
+  /** true when the Node server (API) is reachable; false on static-only hosting. */
+  async serverAvailable() {
+    if (DEMO) return true;
+    try {
+      await http('/health');
+      return true;
+    } catch (e) {
+      return e.status !== 501;
+    }
   },
 
   async login(id, password) {
@@ -229,10 +277,17 @@ export const api = {
       for (const f of files) urls.push(await resizeToDataUrl(f));
       return urls;
     }
-    const form = new FormData();
-    for (const f of files) form.append('files', f);
-    const r = await http('/upload', { method: 'POST', form, auth: true });
-    return r.urls;
+    // One photo per request, and very large photos are shrunk in the browser first, so uploads
+    // also work on hosts with a small request limit (Vercel: 4.5 MB). The server compresses again.
+    const urls = [];
+    for (const f of files) {
+      const file = await shrinkForUpload(f);
+      const form = new FormData();
+      form.append('files', file, file.name || 'photo.jpg');
+      const r = await http('/upload', { method: 'POST', form, auth: true });
+      urls.push(...r.urls);
+    }
+    return urls;
   },
 
   async track(evt) {
